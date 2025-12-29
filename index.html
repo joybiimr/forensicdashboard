@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Forensic Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Slate 50 */
+            color: #1e293b; /* Slate 800 */
+            min-height: 100vh;
+            font-size: 1.05rem; /* Slightly bigger base font */
+        }
+        .white-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border-radius: 1rem;
+        }
+        .confidence-gradient {
+            background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);
+        }
+        .status-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            border: 2px solid white;
+        }
+        .chart-container {
+            position: relative;
+            height: 320px; /* Bigger chart area */
+            width: 100%;
+        }
+        input::placeholder { color: #94a3b8; }
+        /* Professional table styling */
+        .forensic-table th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+<body class="p-6 md:p-12">
+
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center mb-10 gap-8">
+        <div>
+            <h1 class="text-4xl font-extrabold tracking-tight text-slate-900">
+                FORENSIC AUDIT ENGINE BY <span class="text-blue-600">JOY BAVISI</span>
+            </h1>
+            <p id="status" class="text-slate-500 text-lg mt-2 font-medium">System Ready | Awaiting Input</p>
+        </div>
+        
+        <div class="flex gap-4 w-full md:w-auto">
+            <input id="ticker" type="text" placeholder="ENTER TICKER (e.g. RELIANCE)" 
+                   class="flex-1 bg-white border-2 border-slate-200 rounded-xl px-6 py-4 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none text-slate-900 font-bold uppercase text-lg shadow-sm">
+            <button onclick="loadData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-10 rounded-xl transition-all flex items-center gap-3 shadow-lg shadow-blue-200 text-lg">
+                <i data-lucide="shield-search" class="w-6 h-6"></i> RUN AUDIT
+            </button>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        <div class="lg:col-span-1 space-y-8">
+            <div class="white-card p-8 border-t-8 border-blue-600">
+                <div class="flex items-center gap-3 mb-6 text-blue-700 font-bold uppercase tracking-widest text-sm">
+                    <i data-lucide="gavel" class="w-5 h-5"></i> Forensic Verdict
+                </div>
+                <div id="verdict" class="text-lg leading-relaxed text-slate-600 italic min-h-[100px]">
+                    Analysis pending. Run audit to generate forensic signals.
+                </div>
+                
+                <div class="mt-10">
+                    <div class="flex justify-between text-xs mb-3 font-black uppercase text-slate-400 tracking-tighter">
+                        <span>Reliability Level</span>
+                        <span id="conf-percent" class="text-blue-600">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
+                        <div id="conf-bar" class="confidence-gradient h-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="red-flag-badge" class="hidden">
+                <div class="bg-red-50 border-2 border-red-200 text-red-600 p-6 rounded-2xl flex items-center gap-4 animate-bounce">
+                    <i data-lucide="alert-octagon" class="w-8 h-8"></i>
+                    <div>
+                        <p class="font-black text-sm uppercase tracking-wider">Red Flag Detected</p>
+                        <p class="text-xs font-medium opacity-80">Manual Investigation Required</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-3 space-y-8">
+            
+            <div id="scores" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="white-card p-6 text-center opacity-30"><p class="text-xs font-bold text-slate-400">WAITING...</p></div>
+                <div class="white-card p-6 text-center opacity-30"><p class="text-xs font-bold text-slate-400">WAITING...</p></div>
+                <div class="white-card p-6 text-center opacity-30"><p class="text-xs font-bold text-slate-400">WAITING...</p></div>
+                <div class="white-card p-6 text-center opacity-30"><p class="text-xs font-bold text-slate-400">WAITING...</p></div>
+            </div>
+
+            <div id="diagnostics" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="white-card p-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase mb-6 flex items-center gap-2">
+                        <i data-lucide="bar-chart" class="w-4 h-4"></i> Revenue & Earnings
+                    </h4>
+                    <div class="chart-container"><canvas id="chart1"></canvas></div>
+                </div>
+                <div class="white-card p-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase mb-6 flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-4 h-4"></i> Margin Trend
+                    </h4>
+                    <div class="chart-container"><canvas id="chart2"></canvas></div>
+                </div>
+                <div class="white-card p-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase mb-6 flex items-center gap-2">
+                        <i data-lucide="pie-chart" class="w-4 h-4"></i> Return Ratios
+                    </h4>
+                    <div class="chart-container"><canvas id="chart3"></canvas></div>
+                </div>
+                <div class="white-card p-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase mb-6 flex items-center gap-2">
+                        <i data-lucide="fingerprint" class="w-4 h-4"></i> Accruals Analysis
+                    </h4>
+                    <div class="chart-container"><canvas id="chart4"></canvas></div>
+                </div>
+            </div>
+
+            <div class="white-card overflow-hidden">
+                <div class="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <span class="text-sm font-black uppercase tracking-widest text-slate-500">Historical Financial Ledger</span>
+                    <i data-lucide="database" class="w-5 h-5 text-slate-400"></i>
+                </div>
+                <div id="financials" class="overflow-x-auto text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// Logic remains unchanged, but colors and sizes in rendering functions are updated
+const BACKEND="https://fsafawai2025.bavisi-joygaurang24m.workers.dev";
+const METRICS={
+    "Sales":/sales/i, "Operating Profit":/operating profit/i, "Net Profit":/net profit|pat/i,
+    "Total Assets":/total assets/i, "Current Assets":/current assets|other assets/i,
+    "Current Liabilities":/current liabilities|other liabilities/i, "Reserves":/reserves/i,
+    "Equity Capital":/equity capital/i, "Borrowings":/borrowings|debt/i, "Operating Cash Flow":/cash.*operating/i
+};
+
+let activeCharts = [];
+const num = x => { if(!x) return null; const v=parseFloat(x.replace(/,/g,'')); return isNaN(v)?null:v; };
+
+function renderScores(s) {
+    const getRAG = (val, type) => {
+        if(type === 'Z') return val > 3 ? 'emerald' : val > 1.8 ? 'amber' : 'red';
+        if(type === 'F') return val >= 6 ? 'emerald' : val >= 4 ? 'amber' : 'red';
+        if(type === 'O') return val < 10 ? 'emerald' : val < 20 ? 'amber' : 'red';
+        if(type === 'A') return val >= 2.5 ? 'emerald' : val >= 1.5 ? 'amber' : 'red';
+    };
+
+    const keys = [
+        { label: 'Altman Z-score', val: s.Z.toFixed(2), color: getRAG(s.Z, 'Z'), desc: s.Z > 3 ? 'Low Risk' : 'Caution' },
+        { label: 'Piotroski F-score', val: `${s.F}/9`, color: getRAG(s.F, 'F'), desc: s.F >= 6 ? 'High Quality' : 'Average' },
+        { label: 'Ohlson O-score', val: `${s.O.toFixed(1)}%`, color: getRAG(s.O, 'O'), desc: 'Default Prob.' },
+        { label: 'Accruals Score', val: s.A, color: getRAG(s.A, 'A'), desc: 'Accruals Quality' }
+    ];
+
+    document.getElementById("scores").innerHTML = keys.map(k => `
+        <div class="white-card p-6 border-b-8 border-${k.color}-500 transition-all hover:shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">${k.label}</span>
+                <span class="status-light bg-${k.color}-500 shadow-lg shadow-${k.color}-200"></span>
+            </div>
+            <div class="text-3xl font-black text-slate-800">${k.val}</div>
+            <div class="text-[11px] text-${k.color}-600 font-bold uppercase mt-2">${k.desc}</div>
+        </div>
+    `).join('');
+}
+
+function diagnostics(d) {
+    const i=d.Sales.length-1;
+    const cfoPat=(d["Operating Cash Flow"][i]/d["Net Profit"][i]).toFixed(2);
+    const debtAssets=(d.Borrowings[i]/d["Total Assets"][i]).toFixed(4);
+    const marginVol=Math.abs(d["Net Profit Margin (%)"][i]-d["Net Profit Margin (%)"][i-1]).toFixed(1);
+
+    document.getElementById("diagnostics").innerHTML = `
+        <div class="white-card p-6 flex items-center gap-5 border-l-8 border-emerald-500">
+            <div class="p-3 bg-emerald-100 rounded-xl text-emerald-600"><i data-lucide="activity"></i></div>
+            <div><p class="text-xs text-slate-400 uppercase font-bold">Earnings Qaulity Check</p><p class="text-lg font-bold">CFO/PAT: ${cfoPat}</p></div>
+        </div>
+        <div class="white-card p-6 flex items-center gap-5 border-l-8 border-amber-500">
+            <div class="p-3 bg-amber-100 rounded-xl text-amber-600"><i data-lucide="layers"></i></div>
+            <div><p class="text-xs text-slate-400 uppercase font-bold">Balance Sheet Stress Test</p><p class="text-lg font-bold">Debt/Assets: ${debtAssets}</p></div>
+        </div>
+        <div class="white-card p-6 flex items-center gap-5 border-l-8 border-blue-500">
+            <div class="p-3 bg-blue-100 rounded-xl text-blue-600"><i data-lucide="bar-chart-2"></i></div>
+            <div><p class="text-xs text-slate-400 uppercase font-bold">Earnings Smoothing</p><p class="text-lg font-bold">Margin Volatility: ${marginVol}%</p></div>
+        </div>
+    `;
+    lucide.createIcons();
+}
+
+function drawCharts(y, d) {
+    activeCharts.forEach(c => c.destroy());
+    activeCharts = [];
+
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.borderColor = '#e2e8f0';
+    Chart.defaults.font.size = 13;
+
+    const commonOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { usePointStyle: true, font: { weight: 'bold' } } } } };
+
+    // Chart configurations updated with light mode colors
+    activeCharts.push(new Chart(document.getElementById('chart1'), {
+        type: "bar",
+        data: { labels: y, datasets: [
+            { label: "EBITDA", data: d["Operating Profit"], backgroundColor: '#3b82f6' },
+            { label: "PAT", data: d["Net Profit"], backgroundColor: '#10b981' },
+            { label: "Sales", data: d.Sales, type: "line", borderColor: '#f59e0b', yAxisID: "y1", tension: 0.3 }
+        ]},
+        options: { ...commonOpts, scales: { y1: { position: "right", grid: { display: false } } } }
+    }));
+
+    activeCharts.push(new Chart(document.getElementById('chart2'), {
+        type: "line",
+        data: { labels: y, datasets: [
+            { label: "EBITDA %", data: d["EBITDA Margin (%)"], borderColor: '#3b82f6', fill: true, backgroundColor: 'rgba(59, 130, 246, 0.05)' },
+            { label: "Net %", data: d["Net Profit Margin (%)"], borderColor: '#10b981' }
+        ]},
+        options: commonOpts
+    }));
+
+    activeCharts.push(new Chart(document.getElementById('chart3'), {
+        type: "line",
+        data: { labels: y, datasets: [
+            { label: "ROA %", data: d["ROA (%)"], borderColor: '#8b5cf6' },
+            { label: "ROE %", data: d["ROE (%)"], borderColor: '#ec4899' }
+        ]},
+        options: commonOpts
+    }));
+
+    activeCharts.push(new Chart(document.getElementById('chart4'), {
+        type: "bar",
+        data: { labels: y, datasets: [
+            { label: "Accruals", data: d.Accruals, backgroundColor: 'rgba(239, 68, 68, 0.3)' },
+            { label: "Accruals Ratio", data: d["Accruals Ratio"], type: "line", borderColor: '#475569', yAxisID: "y1" }
+        ]},
+        options: { ...commonOpts, scales: { y1: { position: "right", grid: { display: false } } } }
+    }));
+}
+
+function renderTable(d, years) {
+    let h = `<table class="w-full text-left forensic-table">
+        <thead><tr><th class="p-4 border-b">Metric</th>`;
+    years.forEach(y => h += `<th class="p-4 border-b text-right">${y}</th>`);
+    h += `</tr></thead><tbody class="divide-y divide-slate-100">`;
+    Object.keys(d).forEach(k => {
+        if (Array.isArray(d[k])) {
+            h += `<tr><td class="p-4 font-bold text-slate-700">${k}</td>`;
+            d[k].forEach(v => h += `<td class="p-4 text-right text-slate-500 font-medium">${v ?? "-"}</td>`);
+            h += `</tr>`;
+        }
+    });
+    document.getElementById("financials").innerHTML = h + `</tbody></table>`;
+}
+
+function verdict(s) {
+    let msg = ""; let confidence = 0; let redFlag = false;
+    if(s.Z > 3) confidence += 25; else if(s.Z < 1.8) redFlag = true;
+    if(s.O < 15) confidence += 25;
+    if(s.F >= 6) confidence += 25;
+    if(s.A >= 2.5) confidence += 25; else redFlag = true;
+
+    if(s.Z>3 && s.O<10) msg+="Financial structure appears exceptionally robust. ";
+    if(s.F<6) msg+="Momentum is showing early signs of fatigue. ";
+    if(s.A<2.5) msg+="Earnings quality is impacted by high non-cash accruals. ";
+
+    document.getElementById("verdict").innerHTML = msg || "Safe profile. All forensic signals are green.";
+    document.getElementById("conf-percent").innerText = confidence + "%";
+    document.getElementById("conf-bar").style.width = confidence + "%";
+    const badge = document.getElementById("red-flag-badge");
+    redFlag ? badge.classList.remove('hidden') : badge.classList.add('hidden');
+}
+
+async function loadData() {
+    const status = document.getElementById("status");
+    try {
+        status.innerHTML = `<span class="text-blue-600 animate-pulse">Scanning Databases...</span>`;
+        const t = document.getElementById("ticker").value.trim();
+        const res = await fetch(`${BACKEND}?ticker=${t}`);
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+
+        let d = {}, years = [];
+        Object.keys(METRICS).forEach(k => d[k] = []);
+
+        doc.querySelectorAll("table").forEach(tb => {
+            const r = [...tb.rows];
+            if (!r.length) return;
+            const h = [...r[0].cells].map(c => c.innerText);
+            const idx = h.map((x, i) => /\d{4}/.test(x) ? i : null).filter(x => x != null);
+            if (!idx.length) return;
+            years = idx.slice(-5).map(i => h[i]);
+            r.slice(1).forEach(row => {
+                const c = [...row.cells].map(x => x.innerText);
+                Object.keys(METRICS).forEach(k => {
+                    if (METRICS[k].test(c[0])) d[k] = idx.slice(-5).map(i => num(c[i]));
+                });
+            });
+        });
+
+        // Compute Ratios
+        const n = d.Sales.length;
+        d["EBITDA Margin (%)"] = []; d["Net Profit Margin (%)"] = []; d["ROA (%)"] = []; d["ROE (%)"] = []; d["Accruals"] = []; d["Accruals Ratio"] = [];
+        for (let i = 0; i < n; i++) {
+            const s = d.Sales[i], op = d["Operating Profit"][i], p = d["Net Profit"][i], ta = d["Total Assets"][i], eq = d["Equity Capital"][i], r = d.Reserves[i], cfo = d["Operating Cash Flow"][i];
+            d["EBITDA Margin (%)"].push(s && op ? ((op / s) * 100).toFixed(1) : null);
+            d["Net Profit Margin (%)"].push(s && p ? ((p / s) * 100).toFixed(1) : null);
+            d["ROA (%)"].push(ta && p ? ((p / ta) * 100).toFixed(1) : null);
+            d["ROE (%)"].push((eq + r) && p ? ((p / (eq + r)) * 100).toFixed(1) : null);
+            const acc = (p != null && cfo != null) ? (4 * p - cfo) : null;
+            d["Accruals"].push(acc);
+            d["Accruals Ratio"].push(acc && s ? (acc / s).toFixed(3) : null);
+        }
+
+        renderTable(d, years);
+        drawCharts(years, d);
+        diagnostics(d);
+        
+        // Final Scoring
+        const i_last = d.Sales.length - 1;
+        const TA = d["Total Assets"][i_last] || 1;
+        const WC = (d["Current Assets"][i_last] || 0) - (d["Current Liabilities"][i_last] || 0);
+        const Z = 0.717 * (WC / TA) + 0.847 * ((d.Reserves[i_last] || 0) / TA) + 3.107 * ((d["Operating Profit"][i_last] || 0) / TA) + 0.42 * ((d.Reserves[i_last] || 0) / (d.Borrowings[i_last] || 1)) + 0.998 * ((d.Sales[i_last] || 0) / TA);
+        let F = 0;
+        if (d["Net Profit"][i_last] > 0) F++;
+        if (d["Operating Cash Flow"][i_last] > 0) F++;
+        if (i_last > 0 && d["Net Profit"][i_last] > d["Net Profit"][i_last - 1]) F++;
+        if (d["Operating Cash Flow"][i_last] > d["Net Profit"][i_last]) F++;
+        const O = -1.32 - 0.407 * Math.log(TA) + 6.03 * ((d.Borrowings[i_last] || 0) / TA) - 1.43 * (WC / TA);
+        const Oprob = (Math.exp(O) / (1 + Math.exp(O))) * 100;
+        let A = 0; if (i_last > 0 && d.Accruals[i_last] < d.Accruals[i_last - 1]) A += 1.5; if (i_last > 0 && d["Accruals Ratio"][i_last] < d["Accruals Ratio"][i_last - 1]) A += 2.5;
+
+        renderScores({Z, F, O: Oprob, A});
+        verdict({Z, F, O: Oprob, A});
+        status.innerHTML = `<span class="text-emerald-600 font-bold">Analysis Complete: ${t}</span>`;
+        lucide.createIcons();
+    } catch (e) {
+        status.innerHTML = `<span class="text-red-600">Sync Error: Verify Ticker or Connection</span>`;
+    }
+}
+
+lucide.createIcons();
+</script>
+</body>
+</html>

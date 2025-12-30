@@ -11,10 +11,10 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* Slate 50 */
-            color: #1e293b; /* Slate 800 */
+            background-color: #f8fafc;
+            color: #1e293b;
             min-height: 100vh;
-            font-size: 1.05rem; /* Slightly bigger base font */
+            font-size: 1.05rem;
         }
         .white-card {
             background: #ffffff;
@@ -34,11 +34,10 @@
         }
         .chart-container {
             position: relative;
-            height: 320px; /* Bigger chart area */
+            height: 320px;
             width: 100%;
         }
         input::placeholder { color: #94a3b8; }
-        /* Professional table styling */
         .forensic-table th {
             background-color: #f1f5f9;
             color: #475569;
@@ -149,7 +148,6 @@
     </div>
 
 <script>
-// Logic remains unchanged, but colors and sizes in rendering functions are updated
 const BACKEND="https://fsafawai2025.bavisi-joygaurang24m.workers.dev";
 const METRICS={
     "Sales":/sales/i, "Operating Profit":/operating profit/i, "Net Profit":/net profit|pat/i,
@@ -163,14 +161,15 @@ const num = x => { if(!x) return null; const v=parseFloat(x.replace(/,/g,'')); r
 
 function renderScores(s) {
     const getRAG = (val, type) => {
-        if(type === 'Z') return val > 3 ? 'emerald' : val > 1.8 ? 'amber' : 'red';
+        // Updated Altman Z thresholds since value is divided by 100
+        if(type === 'Z') return val > 0.03 ? 'emerald' : val > 0.018 ? 'amber' : 'red';
         if(type === 'F') return val >= 6 ? 'emerald' : val >= 4 ? 'amber' : 'red';
         if(type === 'O') return val < 10 ? 'emerald' : val < 20 ? 'amber' : 'red';
         if(type === 'A') return val >= 2.5 ? 'emerald' : val >= 1.5 ? 'amber' : 'red';
     };
 
     const keys = [
-        { label: 'Altman Z-score', val: s.Z.toFixed(2), color: getRAG(s.Z, 'Z'), desc: s.Z > 3 ? 'Low Risk' : 'Caution' },
+        { label: 'Altman Z-score', val: s.Z.toFixed(4), color: getRAG(s.Z, 'Z'), desc: s.Z > 0.03 ? 'Low Risk' : 'Caution' },
         { label: 'Piotroski F-score', val: `${s.F}/9`, color: getRAG(s.F, 'F'), desc: s.F >= 6 ? 'High Quality' : 'Average' },
         { label: 'Ohlson O-score', val: `${s.O.toFixed(1)}%`, color: getRAG(s.O, 'O'), desc: 'Default Prob.' },
         { label: 'Accruals Score', val: s.A, color: getRAG(s.A, 'A'), desc: 'Accruals Quality' }
@@ -221,7 +220,6 @@ function drawCharts(y, d) {
 
     const commonOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { usePointStyle: true, font: { weight: 'bold' } } } } };
 
-    // Chart configurations updated with light mode colors
     activeCharts.push(new Chart(document.getElementById('chart1'), {
         type: "bar",
         data: { labels: y, datasets: [
@@ -277,12 +275,12 @@ function renderTable(d, years) {
 
 function verdict(s) {
     let msg = ""; let confidence = 0; let redFlag = false;
-    if(s.Z > 3) confidence += 25; else if(s.Z < 1.8) redFlag = true;
+    if(s.Z > 0.03) confidence += 25; else if(s.Z < 0.018) redFlag = true;
     if(s.O < 15) confidence += 25;
     if(s.F >= 6) confidence += 25;
     if(s.A >= 2.5) confidence += 25; else redFlag = true;
 
-    if(s.Z>3 && s.O<10) msg+="Financial structure appears exceptionally robust. ";
+    if(s.Z>0.03 && s.O<10) msg+="Financial structure appears exceptionally robust. ";
     if(s.F<6) msg+="Momentum is showing early signs of fatigue. ";
     if(s.A<2.5) msg+="Earnings quality is impacted by high non-cash accruals. ";
 
@@ -320,7 +318,6 @@ async function loadData() {
             });
         });
 
-        // Compute Ratios
         const n = d.Sales.length;
         d["EBITDA Margin (%)"] = []; d["Net Profit Margin (%)"] = []; d["ROA (%)"] = []; d["ROE (%)"] = []; d["Accruals"] = []; d["Accruals Ratio"] = [];
         for (let i = 0; i < n; i++) {
@@ -338,19 +335,26 @@ async function loadData() {
         drawCharts(years, d);
         diagnostics(d);
         
-        // Final Scoring
         const i_last = d.Sales.length - 1;
         const TA = d["Total Assets"][i_last] || 1;
         const WC = (d["Current Assets"][i_last] || 0) - (d["Current Liabilities"][i_last] || 0);
-        const Z = 0.717 * (WC / TA) + 0.847 * ((d.Reserves[i_last] || 0) / TA) + 3.107 * ((d["Operating Profit"][i_last] || 0) / TA) + 0.42 * ((d.Reserves[i_last] || 0) / (d.Borrowings[i_last] || 1)) + 0.998 * ((d.Sales[i_last] || 0) / TA);
+        
+        // CALCULATION EDIT: Dividing Altman Z-score by 100
+        const rawZ = 0.717 * (WC / TA) + 0.847 * ((d.Reserves[i_last] || 0) / TA) + 3.107 * ((d["Operating Profit"][i_last] || 0) / TA) + 0.42 * ((d.Reserves[i_last] || 0) / (d.Borrowings[i_last] || 1)) + 0.998 * ((d.Sales[i_last] || 0) / TA);
+        const Z = rawZ / 100;
+
         let F = 0;
         if (d["Net Profit"][i_last] > 0) F++;
         if (d["Operating Cash Flow"][i_last] > 0) F++;
         if (i_last > 0 && d["Net Profit"][i_last] > d["Net Profit"][i_last - 1]) F++;
         if (d["Operating Cash Flow"][i_last] > d["Net Profit"][i_last]) F++;
+        
         const O = -1.32 - 0.407 * Math.log(TA) + 6.03 * ((d.Borrowings[i_last] || 0) / TA) - 1.43 * (WC / TA);
         const Oprob = (Math.exp(O) / (1 + Math.exp(O))) * 100;
-        let A = 0; if (i_last > 0 && d.Accruals[i_last] < d.Accruals[i_last - 1]) A += 1.5; if (i_last > 0 && d["Accruals Ratio"][i_last] < d["Accruals Ratio"][i_last - 1]) A += 2.5;
+        
+        let A = 0; 
+        if (i_last > 0 && d.Accruals[i_last] < d.Accruals[i_last - 1]) A += 1.5; 
+        if (i_last > 0 && d["Accruals Ratio"][i_last] < d["Accruals Ratio"][i_last - 1]) A += 2.5;
 
         renderScores({Z, F, O: Oprob, A});
         verdict({Z, F, O: Oprob, A});
@@ -364,5 +368,4 @@ async function loadData() {
 lucide.createIcons();
 </script>
 </body>
-
 </html>

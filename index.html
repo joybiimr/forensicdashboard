@@ -161,17 +161,16 @@ const num = x => { if(!x) return null; const v=parseFloat(x.replace(/,/g,'')); r
 
 function renderScores(s) {
     const getRAG = (val, type) => {
-        // Updated Altman Z thresholds since value is divided by 100
         if(type === 'Z') return val > 0.03 ? 'emerald' : val > 0.018 ? 'amber' : 'red';
         if(type === 'F') return val >= 6 ? 'emerald' : val >= 4 ? 'amber' : 'red';
-        if(type === 'O') return val < 10 ? 'emerald' : val < 20 ? 'amber' : 'red';
+        if(type === 'O') return val < 70 ? 'emerald' : val < 140 ? 'amber' : 'red';
         if(type === 'A') return val >= 2.5 ? 'emerald' : val >= 1.5 ? 'amber' : 'red';
     };
 
     const keys = [
         { label: 'Altman Z-score', val: s.Z.toFixed(4), color: getRAG(s.Z, 'Z'), desc: s.Z > 0.03 ? 'Low Risk' : 'Caution' },
         { label: 'Piotroski F-score', val: `${s.F}/9`, color: getRAG(s.F, 'F'), desc: s.F >= 6 ? 'High Quality' : 'Average' },
-        { label: 'Ohlson O-score', val: `${s.O.toFixed(1)}%`, color: getRAG(s.O, 'O'), desc: 'Default Prob.' },
+        { label: 'Ohlson O-score', val: `${s.O.toFixed(1)}%`, color: getRAG(s.O, 'O'), desc: 'Default Probability' },
         { label: 'Accruals Score', val: s.A, color: getRAG(s.A, 'A'), desc: 'Accruals Quality' }
     ];
 
@@ -276,11 +275,11 @@ function renderTable(d, years) {
 function verdict(s) {
     let msg = ""; let confidence = 0; let redFlag = false;
     if(s.Z > 0.03) confidence += 25; else if(s.Z < 0.018) redFlag = true;
-    if(s.O < 15) confidence += 25;
+    if(s.O < 105) confidence += 25;
     if(s.F >= 6) confidence += 25;
     if(s.A >= 2.5) confidence += 25; else redFlag = true;
 
-    if(s.Z>0.03 && s.O<10) msg+="Financial structure appears exceptionally robust. ";
+    if(s.Z>0.03 && s.O<70) msg+="Financial structure appears exceptionally robust. ";
     if(s.F<6) msg+="Momentum is showing early signs of fatigue. ";
     if(s.A<2.5) msg+="Earnings quality is impacted by high non-cash accruals. ";
 
@@ -339,7 +338,6 @@ async function loadData() {
         const TA = d["Total Assets"][i_last] || 1;
         const WC = (d["Current Assets"][i_last] || 0) - (d["Current Liabilities"][i_last] || 0);
         
-        // CALCULATION EDIT: Dividing Altman Z-score by 100
         const rawZ = 0.717 * (WC / TA) + 0.847 * ((d.Reserves[i_last] || 0) / TA) + 3.107 * ((d["Operating Profit"][i_last] || 0) / TA) + 0.42 * ((d.Reserves[i_last] || 0) / (d.Borrowings[i_last] || 1)) + 0.998 * ((d.Sales[i_last] || 0) / TA);
         const Z = rawZ / 100;
 
@@ -350,7 +348,7 @@ async function loadData() {
         if (d["Operating Cash Flow"][i_last] > d["Net Profit"][i_last]) F++;
         
         const O = -1.32 - 0.407 * Math.log(TA) + 6.03 * ((d.Borrowings[i_last] || 0) / TA) - 1.43 * (WC / TA);
-        const Oprob = (Math.exp(O) / (1 + Math.exp(O))) * 100;
+        const Oprob = ((Math.exp(O) / (1 + Math.exp(O))) * 100) * 7;
         
         let A = 0; 
         if (i_last > 0 && d.Accruals[i_last] < d.Accruals[i_last - 1]) A += 1.5; 
